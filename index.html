@@ -631,7 +631,7 @@ map.dragRotate.enable();
           const coordinates = parkCoordinates[selectedPark][0]; // Get the coordinates for the selected park
           map.flyTo({
             center: coordinates,
-            zoom: 16,
+            zoom: 10,
             essential: true, // this animation is considered essential with respect to prefers-reduced-motion
           });
         }
