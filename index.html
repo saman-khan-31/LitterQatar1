@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Add polygons and markers to a map using a GeoJSON source</title>
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        height: 100vh; /* Full viewport height */
+        overflow: hidden;
+      }
+      #map {
+        flex: 0 0 40%; /* 70% width for the map */
+        position: relative; /* Changed from absolute to relative */
+      }
+      #video-container {
+        flex: 0 0 60%; /* 30% width for the video */
+        height: 50vh; /* 50% of the viewport height */
+        background-color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start; /* Align items at the start */
+      }
+      #dropdown {
+        position: absolute; /* Keep dropdown positioning */
+        top: 10px;
+        left: 10px;
+        z-index: 1;
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+      }
+      video {
+        width: 95%;
+        padding-left: 20px;
+        height: auto;
+        align-content: center;
+      }
+
+      .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        text-align: center;
+        padding-top: 20px;
+      }
+      .row {
+        display: flex;
+        justify-content: center;
+        padding-top: 20px;
+      }
+      .key {
+        font-size: 60px;
+        font-family: Helvetica;
+        color: #8a1538;
+        text-align: center;
+        justify-content: center;
+        align-items: center;
+        transition: color 0.3s ease; /* Smooth transition for the color change */
+      }
+      .key.changed {
+        color: #ff0000; /* Temporary red color */
+      }
+      .label {
+        font-size: 16px;
+        text-align: center;
+        justify-content: center;
+        align-items: center;
+        font-family: Helvetica;
+        font-weight: bold;
+        color: #b8a57f;
+      }
+      .box {
+        padding-left: 20px;
+        background-color: #fff;
+        min-width: 100px; /* Minimum width for the boxes */
+        justify-content: center;
+        flex-direction: column; /* Stack children vertically */
+        align-items: center;
+      }
+
+      .box1 {
+        background-color: #fff;
+        padding-right: 20px;
+        min-width: 50px; /* Minimum width for the boxes */
+        justify-content: center;
+        flex-direction: column; /* Stack children vertically */
+        align-items: center;
+      }
+
+      .box2 {
+        padding-left: 50px;
+        background-color: #fff;
+        min-width: 50px; /* Minimum width for the boxes */
+        justify-content: center;
+        flex-direction: column; /* Stack children vertically */
+        align-items: center;
+      }
+
+      .box3 {
+        padding-left: 50px;
+        background-color: #fff;
+        min-width: 50px; /* Minimum width for the boxes */
+        justify-content: center;
+        flex-direction: column; /* Stack children vertically */
+        align-items: center;
+      }
+
+      .box4 {
+        padding-left: 100px;
+        background-color: #fff;
+        min-width: 50px; /* Minimum width for the boxes */
+        justify-content: center;
+        flex-direction: column; /* Stack children vertically */
+        align-items: center;
+      }
+
+      /* Full-width top container */
+      #top-container {
+        width: 100%;
+        padding: 20px 0;
+        background-color: #333;
+        color: white;
+        text-align: center;
+        font-size: 24px;
+        position: absolute;
+        top: 0;
+      }
+
+      .fullscreen-btn {
+        position: absolute;
+        top: 305px;
+        right: 0px;
+        padding: 10px 20px;
+        background-color: #007bff; /* Blue color */
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        opacity: 0.7; /* Semi-transparent */
+        font-size: 14px;
+        transition: opacity 0.3s ease, background-color 0.3s ease;
+      }
+
+      .fullscreen-btn:hover {
+        opacity: 1;
+        background-color: #0056b3; /* Darker blue on hover */
+      }
+    </style>
+  </head>
+  <body>
+    <div id="dropdown">
+      <select id="park-select" onchange="panToPark()">
+        <option value="">Select a park...</option>
+        <option value="King Abdullah Park">King Abdullah Park</option>
+        <option value="Al Yasmin Park">Al Yasmin Park</option>
+        <option value="Al Mansoura Park">Al Mansoura Park</option>
+        <option value="Al Salam Park">Al Salam Park</option>
+      </select>      
+    </div>
+    <div id="map"></div>
+
+    <div id="video-container">
+      <div id="default-message">
+        Please select a camera to <br />
+        display live video
+      </div>
+      <video id="camera-video" autoplay loop muted>
+        <source id="video-source" src="" type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
+      <!-- Fullscreen button -->
+      <!-- Fullscreen button -->
+
+      <div
+        id="park-name"
+        style="
+          font-size: 20px;
+          font-family: 'Helvetica';
+          text-align: center;
+          padding-top: 10px;
+          font-weight: bold;
+          padding-left: 60px;
+          color: rgb(87, 87, 87);
+        "
+      ></div>
+      <div
+        id="camera-name"
+        style="
+          font-size: 20px;
+          font-family: Helvetica;
+          text-align: center;
+          padding-left: 60px;
+          color: rgb(87, 87, 87);
+        "
+      ></div>
+
+      <!-- Key Value Section: Moved inside the video container -->
+      <!-- Key Value Section: Moved inside the video container -->
+      <!-- Key Value Section: Moved inside the video container -->
+      <div class="container">
+        <!-- First row with 3 boxes -->
+        <div class="row" id="row">
+          <div class="box">
+            <div class="key">0</div>
+            <div class="label"></div>
+          </div>
+          <div class="box4">
+            <div class="key">0</div>
+            <div class="label"></div>
+          </div>
+          <div class="box2">
+            <div class="key">0</div>
+            <div class="label"></div>
+          </div>
+        </div>
+
+        <!-- Second row with 5 boxes -->
+        <div class="row" id="row">
+          <div class="box1">
+            <div class="key">0</div>
+            <div class="label"></div>
+          </div>
+          <div class="box1">
+            <div class="key">0</div>
+            <div class="label"></div>
+          </div>
+          <div class="box1">
+            <div class="key">0</div>
+            <div class="label"></div>
+          </div>
+          <div class="box3">
+            <div class="key">0</div>
+            <div class="label"></div>
+          </div>
+          <div class="box3">
+            <div class="key">0</div>
+            <div class="label"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="qatarTimeContainer"
+      style="
+        position: absolute;
+        right: 408px;
+        top: 360px;
+        font-family: Helvetica;
+        font-size: 17px;
+        font-weight: bold;
+        display: flex;
+        color: rgb(87, 87, 87);
+        align-items: center; /* Align the GIF and text vertically */
+      "
+    >
+      <!-- Add the GIF here -->
+      <img
+        src="redlight.gif"
+        alt="Live Indicator"
+        style="width: 14px; height: 14px; margin-right: 5px"
+      />
+      <small id="qatarTime"></small>
+    </div>
+
+    <script>
+      document.querySelectorAll(".key")[0].style.display = "none";
+      document.querySelectorAll(".key")[1].style.display = "none";
+      document.querySelectorAll(".key")[2].style.display = "none";
+      document.querySelectorAll(".key")[3].style.display = "none";
+      document.querySelectorAll(".key")[4].style.display = "none";
+      document.querySelectorAll(".key")[5].style.display = "none";
+      document.querySelectorAll(".key")[6].style.display = "none";
+      document.querySelectorAll(".key")[7].style.display = "none";
+
+      document.getElementById("camera-video").style.display = "none";
+      document.getElementById("qatarTimeContainer").style.display = "none";
+
+      const defaultMessage = document.getElementById("default-message");
+      if (defaultMessage) {
+        defaultMessage.style.color = "darkgrey"; // Set text color to light grey
+        defaultMessage.style.fontSize = "25px"; // Set font size to 20px
+        defaultMessage.style.textAlign = "center"; // Center-align the text
+        defaultMessage.style.paddingTop = "50px"; // Center-align the text
+        defaultMessage.style.fontFamily = "Helvetica"; // Center-align the text
+      }
+
+      mapboxgl.accessToken =
+        "pk.eyJ1Ijoic2FtYW4ta2hhbiIsImEiOiJjbTFqOXh5Z3EwbTYzMnFvY294c25uZWM1In0.NVqAA0Y413PYuW4duA-sIg";
+        const map = new mapboxgl.Map({
+  container: "map", // container ID
+  style: "mapbox://styles/saman-khan/cm1ka5qgt005c01p89rx35huk", // style URL
+  center: [46.6753, 24.7136], // center the map to Riyadh
+  zoom: 10,
+  pitch: 60, // Set the default tilt (angle)
+  bearing: -20, // Set the rotation angle in degrees
+});
+
+// Enable dragging and rotating
+map.dragPan.enable();
+map.dragRotate.enable();
+
+      // Add zoom and rotation controls to the map (navigation controls)
+      const navControl = new mapboxgl.NavigationControl();
+      map.addControl(navControl, "top-right");
+
+      const parkCoordinates = {
+    "King Abdullah Park": [
+        [46.7360842448864, 24.663740995933622],
+        [46.73760439599832, 24.663497959055576],
+        [46.7390119433247, 24.664406147072725],
+        [46.73920899995011, 24.665429449593958],
+        [46.73905416974392, 24.665723647515037],
+        [46.73912454711024, 24.66620971212656],
+        [46.73949050941536, 24.666503908208384],
+        [46.73799850925056, 24.668780706597502],
+        [46.737562169579064, 24.66919001426092],
+        [46.73690062233513, 24.669535366557227],
+        [46.736140546779126, 24.669624902181624],
+        [46.735436773115964, 24.6694714125004],
+        [46.7349582070253, 24.66919001426092],
+        [46.73453594282739, 24.66885745188695],
+        [46.7342825843092, 24.668345815733787],
+        [46.73414182957657, 24.6678085955147],
+        [46.73415590505013, 24.667284164021396],
+        [46.73429665978276, 24.666772521415865],
+        [46.73494413155174, 24.665774812300512],
+        [46.7349582070253, 24.665455032049366],
+        [46.7360842448864, 24.663740995933622]
+    ],
+    "Al Yasmin Park": [
+        [46.64584782720755, 24.825044482790602],
+        [46.64623010062067, 24.824308948569723],
+        [46.64793758853554, 24.825053734765802],
+        [46.64756550907927, 24.82575688283997],
+        [46.64584782720755, 24.825044482790602]
+    ],
+    "Al Mansoura Park": [
+        [46.752003842792845, 24.611583392284444],
+        [46.75251376282753, 24.610587799523557],
+        [46.75661820113817, 24.61233578155658],
+        [46.756099921758505, 24.613293361357393],
+        [46.752003842792845, 24.611583392284444]
+    ],
+    "Al Salam Park": [
+        [46.70702041218246, 24.61740807998828],
+        [46.70928600592322, 24.617012069633375],
+        [46.70985939225585, 24.617124777184912],
+        [46.710957640983, 24.624918209205433],
+        [46.709252978914975, 24.62462237010665],
+        [46.70630755350072, 24.62291652529494],
+        [46.70702041218246, 24.61740807998828]
+    ]
+};
+
+
+      // Store the last playback time for each camera
+      const playbackTimes = {
+        c1: 0,
+        c2: 0,
+        c3: 0,
+        c4: 0,
+      };
+
+      map.on("load", () => {
+  // Add a GeoJSON source for polygons
+  map.addSource("parks", {
+    type: "geojson",
+    data: {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { name: "King Abdullah Park" },
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [46.7360842448864, 24.663740995933622],
+                [46.73760439599832, 24.663497959055576],
+                [46.7390119433247, 24.664406147072725],
+                [46.73920899995011, 24.665429449593958],
+                [46.73905416974392, 24.665723647515037],
+                [46.73912454711024, 24.66620971212656],
+                [46.73949050941536, 24.666503908208384],
+                [46.73799850925056, 24.668780706597502],
+                [46.737562169579064, 24.66919001426092],
+                [46.73690062233513, 24.669535366557227],
+                [46.736140546779126, 24.669624902181624],
+                [46.735436773115964, 24.6694714125004],
+                [46.7349582070253, 24.66919001426092],
+                [46.73453594282739, 24.66885745188695],
+                [46.7342825843092, 24.668345815733787],
+                [46.73414182957657, 24.6678085955147],
+                [46.73415590505013, 24.667284164021396],
+                [46.73429665978276, 24.666772521415865],
+                [46.73494413155174, 24.665774812300512],
+                [46.7349582070253, 24.665455032049366],
+                [46.7360842448864, 24.663740995933622],
+              ],
+            ],
+          },
+        },
+        {
+          type: "Feature",
+          properties: { name: "Al Yasmin Park" },
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [46.64584782720755, 24.825044482790602],
+                [46.64623010062067, 24.824308948569723],
+                [46.64793758853554, 24.825053734765802],
+                [46.64756550907927, 24.82575688283997],
+                [46.64584782720755, 24.825044482790602],
+              ],
+            ],
+          },
+        },
+        {
+          type: "Feature",
+          properties: { name: "Al Mansoura Park" },
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [46.752003842792845, 24.611583392284444],
+                [46.75251376282753, 24.610587799523557],
+                [46.75661820113817, 24.61233578155658],
+                [46.756099921758505, 24.613293361357393],
+                [46.752003842792845, 24.611583392284444],
+              ],
+            ],
+          },
+        },
+        {
+          type: "Feature",
+          properties: { name: "Al Salam Park" },
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [46.70702041218246, 24.61740807998828],
+                [46.70928600592322, 24.617012069633375],
+                [46.70985939225585, 24.617124777184912],
+                [46.710957640983, 24.624918209205433],
+                [46.709252978914975, 24.62462237010665],
+                [46.70630755350072, 24.62291652529494],
+                [46.70702041218246, 24.61740807998828],
+              ],
+            ],
+          },
+        },
+      ],
+    },
+  });
+
+
+        // Add a black outline around each polygon
+        map.addLayer({
+          id: "parks-outline",
+          type: "line",
+          source: "parks",
+          layout: {},
+          paint: {
+            "line-color": "#000",
+            "line-width": 2,
+          },
+        });
+
+        // Add markers to the map
+        addMarker(
+          [46.739141, 24.665939],
+          "c1",
+          "Front Entrance",
+          "c1_compressed.mp4"
+        );
+        addMarker(
+          [46.735749, 24.665855 ],
+          "c2",
+          "Inside Park",
+          "c2_compressed.mp4"
+        );
+        addMarker(
+          [46.737917,24.663642],
+          "c3",
+          "Back Entrance",
+          "c3_compressed.mp4"
+        );
+        addMarker(
+          [46.646130, 24.825171],
+          "c1",
+          "Front Entrance",
+          "c1_compressed.mp4"
+        );
+        addMarker(
+          [46.647394, 24.825304],
+          "c2",
+          "Inside Park",
+          "c2_compressed.mp4"
+        );
+        addMarker(
+          [46.756467, 24.612861],
+          "c1",
+          "Front Entrance",
+          "c1_compressed.mp4"
+        );
+        addMarker(
+          [46.754128, 24.611504],
+          "c2",
+          "Inside Park",
+          "c2_compressed.mp4"
+        );
+        addMarker(
+          [ 46.752212, 24.611076],
+          "c3",
+          "Back Entrance",
+          "c3_compressed.mp4"
+        );
+        addMarker(
+          [46.709026, 24.618100],
+          "c1",
+          "Front Entrance",
+          "c1_compressed.mp4"
+        );
+        addMarker(
+          [ 46.709428, 24.622250],
+          "c2",
+          "Inside Park",
+          "c2_compressed.mp4"
+        );
+
+      });
+
+      let selectedMarkerId = null;
+
+      function addMarker(lngLat, id, name, videoSrc) {
+        // Create a custom marker element
+        const markerElement = document.createElement("div");
+        markerElement.className = "marker"; // Add a class for CSS styling
+        markerElement.style.width = "15px"; // Set width of the marker
+        markerElement.style.height = "15px"; // Set height of the marker
+        markerElement.style.backgroundColor = "red"; // Set marker color to red
+        markerElement.style.borderRadius = "50%"; // Make it a circle
+        markerElement.style.boxShadow = "0 0 10px rgba(0, 0, 0, 0.2)"; // Optional: add shadow for better visibility
+
+        // Create the camera icon element
+        const cameraIcon = document.createElement("img");
+        cameraIcon.src = "camera.png"; // Path to your red camera icon image
+        cameraIcon.style.width = "30px"; // Adjust width as needed
+        cameraIcon.style.height = "30px"; // Adjust height as needed
+        cameraIcon.style.cursor = "pointer"; // Change cursor to pointer for interactivity
+
+        // Create and add the marker
+        const marker = new mapboxgl.Marker(cameraIcon)
+          .setLngLat(lngLat)
+          .setPopup(new mapboxgl.Popup().setText(name))
+          .addTo(map);
+
+        cameraIcon.addEventListener("click", () => {
+          document.getElementById("default-message").style.display = "none"; // Hide the default message
+          // Set the park and camera names
+
+          const currentTime = playbackTimes[id];
+          selectedMarkerId = id;
+          document.getElementById("camera-video").style.display = "flex";
+          document.getElementById("qatarTimeContainer").style.display = "flex";
+          const cameraVideo = document.getElementById("camera-video");
+          const videoSource = document.getElementById("video-source");
+          videoSource.src = videoSrc;
+          cameraVideo.load(); // Load the new video source
+          //cameraVideo.currentTime = currentTime; // Resume from 10 seconds later
+          cameraVideo.play(); // Play the video
+          playbackTimes[id] = cameraVideo.currentTime; // Update last playback time
+
+          const selectedPark = document.getElementById("park-select").value;
+          document.getElementById("park-name").textContent = selectedPark; // Use the global selectedPark variable
+          document.getElementById("camera-name").textContent = name + " View";
+
+          const visitorsInsideParkElement_LAB =
+            document.querySelectorAll(".label")[0]; // First key
+          const peopleEnteredElement_LAB =
+            document.querySelectorAll(".label")[1]; // Second key
+          const peopleExitedElement_LAB =
+            document.querySelectorAll(".label")[2]; // Third key
+          const menElement_LAB = document.querySelectorAll(".label")[3]; // First key
+          const womenElement_LAB = document.querySelectorAll(".label")[4]; // Second key
+          const childrenElement_LAB = document.querySelectorAll(".label")[5]; // Third key
+          const carsElement_LAB = document.querySelectorAll(".label")[6]; // First key
+          const litterElement_LAB = document.querySelectorAll(".label")[7]; // Second key
+
+          if (name == "Inside Park") {
+            visitorsInsideParkElement_LAB.textContent =
+              "Restricted Area Violation";
+            peopleEnteredElement_LAB.textContent = "Littering";
+            peopleExitedElement_LAB.textContent = "Crowd Disturbance";
+          } else if (name == "Front Entrance") {
+            visitorsInsideParkElement_LAB.textContent = "Unauthorized Parking";
+            peopleEnteredElement_LAB.textContent = "Abnormal Behavior";
+            peopleExitedElement_LAB.textContent = "Parked Cars";
+          } else {
+            visitorsInsideParkElement_LAB.textContent = "Visitors Inside Park";
+            peopleEnteredElement_LAB.textContent = "People Entered";
+            peopleExitedElement_LAB.textContent = "People Exited";
+            menElement_LAB.textContent = "Men";
+            womenElement_LAB.textContent = "Women";
+            childrenElement_LAB.textContent = "Kids";
+            carsElement_LAB.textContent = "Cars Parked";
+            litterElement_LAB.textContent = "Litter Cases";
+          }
+        });
+      }
+
+      function panToPark() {
+        const selectedPark = document.getElementById("park-select").value;
+        if (selectedPark) {
+          const coordinates = parkCoordinates[selectedPark][0]; // Get the coordinates for the selected park
+          map.flyTo({
+            center: coordinates,
+            zoom: 17,
+            essential: true, // this animation is considered essential with respect to prefers-reduced-motion
+          });
+        }
+      }
+
+      // Optional: Add a listener to update playback time on video pause or end
+      document.getElementById("camera-video").addEventListener("pause", () => {
+        const currentTime = document.getElementById("camera-video").currentTime;
+        for (let key in playbackTimes) {
+          playbackTimes[key] = currentTime; // Update last playback time for all cameras
+        }
+      });
+
+      document.getElementById("camera-video").addEventListener("ended", () => {
+        const currentTime = document.getElementById("camera-video").currentTime;
+        for (let key in playbackTimes) {
+          playbackTimes[key] = currentTime; // Update last playback time for all cameras
+        }
+
+        document.getElementById("camera-video").currentTime = 0; // Reset to start for looping
+        document.getElementById("camera-video").play(); // Play again
+      });
+
+      document.addEventListener("DOMContentLoaded", function () {
+        // Initialize variables
+
+        const cameraname = document.getElementById("camera-name").textContent;
+        const video = document.getElementById("camera-video"); // Select the video element
+        const visitorsInsideParkElement = document.querySelectorAll(".key")[0]; // First key
+        const peopleEnteredElement = document.querySelectorAll(".key")[1]; // Second key
+        const peopleExitedElement = document.querySelectorAll(".key")[2]; // Third key
+        const menElement = document.querySelectorAll(".key")[3]; // Fourth key: Litter
+        const womenElement = document.querySelectorAll(".key")[4]; // Fifth key: Cars
+        const childrenElement = document.querySelectorAll(".key")[5]; // Sixth key: Men
+        const carsElement = document.querySelectorAll(".key")[6]; // Seventh key: Women
+        const litterElement = document.querySelectorAll(".key")[7]; // Eighth key: Children
+        const unauthorizedParkingElement = document.querySelectorAll(".key")[0]; // First key
+        const abnormalBehaviorElement = document.querySelectorAll(".key")[1]; // Second key
+        const carsFrontElement = document.querySelectorAll(".key")[2]; // Third key
+
+        let totalPeople = 100; // Start with 100 people
+        let men = 30; // Start with 30 men
+        let women = 30; // Start with 30 women
+        let children = 40; // Start with 10 children
+        let lastUpdateData = null;
+        let lastTotalPeople = totalPeople; // Track the last total people value
+        let lastLitter = litterElement.textContent; // Track the last litter value
+        let lastCars = carsElement.textContent; // Track the last cars value
+        let lastMen = men; // Track the last men count
+        let lastWomen = women; // Track the last women count
+        let lastChildren = children; // Track the last children count
+        let TotalExited = 0;
+        let TotalEntered = 0;
+        let lastEntered = TotalExited;
+        let lastExited = TotalExited;
+
+        // Array holding the data for video time, visitors inside, entered, and exited
+        const videoTimeData = [
+          { time: 0, visitors: 140, entered: 112, exited: 34 },
+          { time: 5, visitors: 143, entered: 113, exited: 37 },
+          { time: 10, visitors: 146, entered: 116, exited: 37 },
+          { time: 15, visitors: 144, entered: 116, exited: 39 },
+        ];
+
+        const newVideoTimeData = [
+          {
+            time: 0,
+            abnormalBehavior: 0,
+            redBehavior: 0,
+            cars: 5,
+            unauthorizedParking: 0,
+            redParking: 0,
+          },
+          {
+            time: 6,
+            abnormalBehavior: 1,
+            redBehavior: 1,
+            cars: 5,
+            unauthorizedParking: 0,
+            redParking: 0,
+          },
+          {
+            time: 12,
+            abnormalBehavior: 1,
+            redBehavior: 1,
+            cars: 6,
+            unauthorizedParking: 1,
+            redParking: 1,
+          },
+          {
+            time: 33,
+            abnormalBehavior: 1,
+            redBehavior: 0,
+            cars: 6,
+            unauthorizedParking: 1,
+            redParking: 1,
+          },
+          {
+            time: 59,
+            abnormalBehavior: 1,
+            redBehavior: 0,
+            cars: 7,
+            unauthorizedParking: 1,
+            redParking: 1,
+          },
+        ];
+
+        // Data for the alternative (else) scenario with Litter, Crowd, Violation, and KeepRed
+        const elseVideoTimeData = [
+          { time: 0, litter: 0, crowd: 0, violation: 0, keepRed: 0 },
+          { time: 5, litter: 0, crowd: 0, violation: 1, keepRed: 1 },
+          { time: 15, litter: 0, crowd: 0, violation: 1, keepRed: 0 },
+          { time: 21, litter: 0, crowd: 0, violation: 2, keepRed: 1 },
+          { time: 25, litter: 0, crowd: 0, violation: 2, keepRed: 0 },
+          { time: 47, litter: 0, crowd: 0, violation: 5, keepRed: 1 },
+          { time: 54, litter: 0, crowd: 0, violation: 6, keepRed: 1 },
+          { time: 61, litter: 0, crowd: 0, violation: 6, keepRed: 0 },
+          { time: 65, litter: 0, crowd: 0, violation: 9, keepRed: 1 },
+          { time: 77, litter: 0, crowd: 0, violation: 9, keepRed: 0 },
+          { time: 81, litter: 0, crowd: 0, violation: 10, keepRed: 1 },
+          { time: 83, litter: 0, crowd: 0, violation: 10, keepRed: 0 },
+        ];
+
+        const videoTimeDataBack = [
+          {
+            time: 1,
+            entered: 0,
+            exited: 0,
+            litter: 3,
+            cars: 4,
+            menChange: 0,
+            womenChange: 0,
+            childrenChange: 0,
+          },
+          {
+            time: 6,
+            entered: 0,
+            exited: 3,
+            litter: 3,
+            cars: 4,
+            menChange: -3,
+            womenChange: 0,
+            childrenChange: 0,
+          },
+          {
+            time: 32,
+            entered: 0,
+            exited: 0,
+            litter: 3,
+            cars: 5,
+            menChange: 0,
+            womenChange: 0,
+            childrenChange: 0,
+          },
+          {
+            time: 42,
+            entered: 0,
+            exited: 1,
+            litter: 3,
+            cars: 5,
+            menChange: -1,
+            womenChange: 0,
+            childrenChange: 0,
+          },
+          {
+            time: 69,
+            entered: 4,
+            exited: 0,
+            litter: 3,
+            cars: 5,
+            menChange: 1,
+            womenChange: 1,
+            childrenChange: 2,
+          },
+          {
+            time: 81,
+            entered: 0,
+            exited: 2,
+            litter: 3,
+            cars: 5,
+            menChange: 0,
+            womenChange: -2,
+            childrenChange: 0,
+          },
+          {
+            time: 92,
+            entered: 1,
+            exited: 0,
+            litter: 3,
+            cars: 5,
+            menChange: 0,
+            womenChange: 0,
+            childrenChange: 1,
+          },
+          {
+            time: 100,
+            entered: 0,
+            exited: 1,
+            litter: 3,
+            cars: 5,
+            menChange: -1,
+            womenChange: 0,
+            childrenChange: 0,
+          },
+          {
+            time: 103,
+            entered: 1,
+            exited: 0,
+            litter: 3,
+            cars: 5,
+            menChange: 1,
+            womenChange: 0,
+            childrenChange: 0,
+          },
+          {
+            time: 118,
+            entered: 1,
+            exited: 0,
+            litter: 3,
+            cars: 5,
+            menChange: 1,
+            womenChange: 0,
+            childrenChange: 0,
+          },
+        ];
+
+        // Function to update the key values on the page
+        function updateKeyValues(currentTime) {
+          if (selectedMarkerId == "c1") {
+            // Find the most recent row with a time less than or equal to the current time
+            const currentData = newVideoTimeData
+              .filter((data) => data.time <= currentTime)
+              .pop();
+
+
+              var rowElement = document.getElementById("row");
+            rowElement.style.paddingTop = "10px";
+
+            const labels = document.querySelectorAll(".label");
+            labels.forEach((label) => {
+              label.style.fontSize = "16px"; // Change the font size dynamically
+            });
+
+            const box1 = document.querySelectorAll(".box1");
+            box1.forEach((box) => {
+              box.style.paddingLeft = "0px"; // Dynamically change the padding
+              box.style.paddingRight = "0px"; // Dynamically change the padding
+            });
+
+            const box4 = document.querySelectorAll(".box4");
+            box4.forEach((box) => {
+              box.style.paddingLeft = "50px"; // Dynamically change the padding
+              box.style.paddingRight = "0px"; // Dynamically change the padding
+            });
+
+
+            const keys = document.querySelectorAll(".key");
+            keys.forEach((key) => {
+              key.style.fontSize = "60px"; // Change this value to your desired size
+            });
+
+
+            // Display necessary elements, hide others
+            document.querySelectorAll(".key")[0].style.display = "flex"; // Abnormal Behavior
+            document.querySelectorAll(".key")[1].style.display = "flex"; // Cars
+            document.querySelectorAll(".key")[2].style.display = "flex"; // Unauthorized Parking
+            document.querySelectorAll(".key")[0].style.fontColor = "#8a1538"; // Abnormal Behavior
+            document.querySelectorAll(".key")[1].style.fontColor = "#8a1538"; // Cars
+            document.querySelectorAll(".key")[2].style.fontColor = "#8a1538"; // Unauthorized Parking
+            litterElement.style.display = "none";
+            carsElement.style.display = "none";
+            menElement.style.display = "none";
+            womenElement.style.display = "none";
+            childrenElement.style.display = "none";
+            document.querySelectorAll(".label")[3].style.display = "none"; // First key
+            document.querySelectorAll(".label")[4].style.display = "none"; // Second key
+            document.querySelectorAll(".label")[5].style.display = "none"; // Third key
+            document.querySelectorAll(".label")[6].style.display = "none"; // Third key
+            document.querySelectorAll(".label")[7].style.display = "none"; // Third key
+
+            if (currentData) {
+              function temporaryColorChange(element) {
+                element.classList.add("changed");
+                setTimeout(() => {
+                  element.classList.remove("changed");
+                }, 2000);
+              }
+
+              // Update the Abnormal Behavior key value if it differs from the current data
+              if (
+                abnormalBehaviorElement.textContent !=
+                currentData.abnormalBehavior
+              ) {
+                abnormalBehaviorElement.textContent =
+                  currentData.abnormalBehavior;
+                temporaryColorChange(abnormalBehaviorElement);
+              }
+
+              // Update the Cars key value if it differs from the current data
+              if (carsFrontElement.textContent != currentData.cars) {
+                carsFrontElement.textContent = currentData.cars;
+                temporaryColorChange(carsFrontElement);
+              }
+
+              // Update the Unauthorized Parking key value if it differs from the current data
+              if (
+                unauthorizedParkingElement.textContent !=
+                currentData.unauthorizedParking
+              ) {
+                unauthorizedParkingElement.textContent =
+                  currentData.unauthorizedParking;
+                temporaryColorChange(unauthorizedParkingElement);
+              }
+
+              // Change font color based on RedBehavior for Abnormal Behavior
+              abnormalBehaviorElement.style.color =
+                currentData.redBehavior === 1 ? "#ff0000" : "#8a1538";
+
+              // Change font color based on RedParking for Unauthorized Parking
+              unauthorizedParkingElement.style.color =
+                currentData.redParking === 1 ? "#ff0000" : "#8a1538";
+            }
+          } else if (selectedMarkerId == "c2") {
+            // Find the most recent row with a time less than or equal to the current time
+            const currentData = elseVideoTimeData
+              .filter((data) => data.time <= currentTime)
+              .pop();
+
+            var rowElement = document.getElementById("row");
+            rowElement.style.paddingTop = "10px";
+
+            const labels = document.querySelectorAll(".label");
+            labels.forEach((label) => {
+              label.style.fontSize = "16px"; // Change the font size dynamically
+            });
+
+            const box1 = document.querySelectorAll(".box1");
+            box1.forEach((box) => {
+              box.style.paddingLeft = "0px"; // Dynamically change the padding
+              box.style.paddingRight = "0px"; // Dynamically change the padding
+            });
+
+            const box4 = document.querySelectorAll(".box4");
+            box4.forEach((box) => {
+              box.style.paddingLeft = "50px"; // Dynamically change the padding
+              box.style.paddingRight = "0px"; // Dynamically change the padding
+            });
+
+
+            const keys = document.querySelectorAll(".key");
+            keys.forEach((key) => {
+              key.style.fontSize = "60px"; // Change this value to your desired size
+            });
+
+            document.querySelectorAll(".key")[0].style.display = "flex";
+            document.querySelectorAll(".key")[1].style.display = "flex";
+            document.querySelectorAll(".key")[2].style.display = "flex";
+            document.querySelectorAll(".key")[0].style.fontColor = "#8a1538"; // Abnormal Behavior
+            document.querySelectorAll(".key")[1].style.fontColor = "#8a1538"; // Cars
+            document.querySelectorAll(".key")[2].style.fontColor = "#8a1538"; // Unauthorized Parking
+            litterElement.style.display = "none";
+            carsElement.style.display = "none";
+            menElement.style.display = "none";
+            womenElement.style.display = "none";
+            childrenElement.style.display = "none";
+            document.querySelectorAll(".label")[3].style.display = "none"; // First key
+            document.querySelectorAll(".label")[4].style.display = "none"; // Second key
+            document.querySelectorAll(".label")[5].style.display = "none"; // Third key
+            document.querySelectorAll(".label")[6].style.display = "none"; // First key
+            document.querySelectorAll(".label")[7].style.display = "none"; // Second key
+
+            if (currentData) {
+              function temporaryColorChange(element) {
+                element.classList.add("changed");
+                setTimeout(() => {
+                  element.classList.remove("changed");
+                }, 2000);
+              }
+
+              // Update the key values only if they differ from current data
+              if (peopleExitedElement.textContent != currentData.litter) {
+                peopleExitedElement.textContent = currentData.litter;
+              }
+
+              if (peopleEnteredElement.textContent != currentData.crowd) {
+                peopleEnteredElement.textContent = currentData.crowd;
+              }
+
+              if (
+                visitorsInsideParkElement.textContent != currentData.violation
+              ) {
+                visitorsInsideParkElement.textContent = currentData.violation;
+                temporaryColorChange(visitorsInsideParkElement);
+              }
+
+              // Change font color based on KeepRed
+              const elements = [visitorsInsideParkElement];
+              const fontColor =
+                currentData.keepRed === 1 ? "#ff0000" : "#8a1538";
+
+              elements.forEach((element) => {
+                element.style.color = fontColor;
+              });
+            }
+          } else {
+            // Function to update the key values
+
+            var rowElement = document.getElementById("row");
+            rowElement.style.paddingTop = "0px";
+
+            const keys = document.querySelectorAll(".key");
+            keys.forEach((key) => {
+              key.style.fontSize = "30px"; // Change this value to your desired size
+            });
+
+            const labels = document.querySelectorAll(".label");
+            labels.forEach((label) => {
+              label.style.fontSize = "13px"; // Change the font size dynamically
+            });
+
+            const box1 = document.querySelectorAll(".box1");
+            box1.forEach((box) => {
+              box.style.paddingLeft = "0px"; // Dynamically change the padding
+              box.style.paddingRight = "2px"; // Dynamically change the padding
+            });
+
+            const box4 = document.querySelectorAll(".box4");
+            box4.forEach((box) => {
+              box.style.paddingLeft = "50px"; // Dynamically change the padding
+              box.style.paddingRight = "0px"; // Dynamically change the padding
+            });
+
+            const closestData = videoTimeDataBack
+              .filter((data) => data.time <= currentTime)
+              .pop();
+
+            // Check if we have found relevant data and it's different from the last updated data
+            if (closestData && closestData !== lastUpdateData) {
+              document.querySelectorAll(".key")[0].style.display = "flex";
+              document.querySelectorAll(".key")[1].style.display = "flex";
+              document.querySelectorAll(".key")[2].style.display = "flex";
+              document.querySelectorAll(".key")[0].style.fontColor = "#8a1538"; // Abnormal Behavior
+              document.querySelectorAll(".key")[1].style.fontColor = "#8a1538"; // Cars
+              document.querySelectorAll(".key")[2].style.fontColor = "#8a1538"; // Unauthorized Parking
+              litterElement.style.display = "flex";
+              carsElement.style.display = "flex";
+              menElement.style.display = "flex";
+              womenElement.style.display = "flex";
+              childrenElement.style.display = "flex";
+              document.querySelectorAll(".label")[3].style.display = "flex"; // First key
+              document.querySelectorAll(".label")[4].style.display = "flex"; // Second key
+              document.querySelectorAll(".label")[5].style.display = "flex"; // Third key
+              document.querySelectorAll(".label")[6].style.display = "flex"; // First key
+              document.querySelectorAll(".label")[7].style.display = "flex"; // Second key
+
+              // Update Total People, People Entered, and People Exited
+              TotalEntered += closestData.entered;
+              TotalExited += closestData.exited;
+              totalPeople += closestData.entered - closestData.exited;
+              visitorsInsideParkElement.textContent = totalPeople;
+              peopleEnteredElement.textContent = TotalEntered;
+              peopleExitedElement.textContent = TotalExited;
+
+              // Update Litter and Cars directly from the table
+              litterElement.textContent = closestData.litter;
+              carsElement.textContent = closestData.cars;
+
+              // Update Men, Women, and Children with their respective changes
+              men += closestData.menChange;
+              women += closestData.womenChange;
+              children += closestData.childrenChange;
+
+              menElement.textContent = men;
+              womenElement.textContent = women;
+              childrenElement.textContent = children;
+
+              // Check and apply temporary color change for changed values
+              if (totalPeople !== lastTotalPeople) {
+                temporaryColorChange(visitorsInsideParkElement);
+                lastTotalPeople = totalPeople; // Update the last value
+              }
+
+              if (closestData.litter !== lastLitter) {
+                litterElement.textContent = closestData.litter; // Ensure to update the text
+                temporaryColorChange(litterElement);
+                lastLitter = closestData.litter; // Update the last value
+              }
+
+              if (closestData.cars !== lastCars) {
+                carsElement.textContent = closestData.cars; // Ensure to update the text
+                temporaryColorChange(carsElement);
+                lastCars = closestData.cars; // Update the last value
+              }
+
+              if (men !== lastMen) {
+                menElement.textContent = men; // Ensure to update the text
+                temporaryColorChange(menElement);
+                lastMen = men; // Update the last value
+              }
+
+              if (women !== lastWomen) {
+                womenElement.textContent = women; // Ensure to update the text
+                temporaryColorChange(womenElement);
+                lastWomen = women; // Update the last value
+              }
+
+              if (children !== lastChildren) {
+                childrenElement.textContent = children; // Ensure to update the text
+                temporaryColorChange(childrenElement);
+                lastChildren = children; // Update the last value
+              }
+
+              if (TotalEntered !== lastEntered) {
+                // Ensure to update the text
+                temporaryColorChange(peopleEnteredElement);
+                peopleEnteredElement.style.fontSize = 12;
+                lastEntered = TotalEntered; // Update the last value
+              }
+
+              if (TotalExited !== lastExited) {
+                // Ensure to update the text
+                temporaryColorChange(peopleExitedElement);
+                lastExited = TotalExited; // Update the last value
+              }
+
+              // Store the current data to track the last update
+              lastUpdateData = closestData;
+            }
+          }
+
+          // Function to temporarily change color to red
+          function temporaryColorChange(element) {
+            element.classList.add("changed"); // Add the 'changed' class
+            setTimeout(() => {
+              element.classList.remove("changed"); // Remove the 'changed' class after 0.5 seconds
+            }, 2000); // Adjust this delay as needed
+          }
+        }
+
+        // Listen for the timeupdate event on the video
+        video.addEventListener("timeupdate", function () {
+          const currentTime = Math.floor(video.currentTime); // Get the current time in seconds
+          updateKeyValues(currentTime); // Call the function to update the key values
+        });
+      });
+
+      // Function to format the date to "October 3rd, 2024 1:43 PM"
+      function formatQatarDateTime(date) {
+        const options = {
+          timeZone: "Asia/Qatar",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        };
+
+        const day = date.getDate();
+        const suffix =
+          day % 10 === 1 && day !== 11
+            ? "st"
+            : day % 10 === 2 && day !== 12
+            ? "nd"
+            : day % 10 === 3 && day !== 13
+            ? "rd"
+            : "th";
+
+        return date
+          .toLocaleDateString("en-US", options)
+          .replace(/\d{1,2}/, day + suffix);
+      }
+
+      // Function to update the time every minute
+      function updateQatarTime() {
+        const now = new Date();
+        const qatarTime = formatQatarDateTime(now);
+        document.getElementById("qatarTime").textContent = qatarTime;
+      }
+
+      // Initial call to set the time
+      updateQatarTime();
+
+      // Update the time every minute
+      setInterval(updateQatarTime, 60000);
+    </script>
+  </body>
+</html>
